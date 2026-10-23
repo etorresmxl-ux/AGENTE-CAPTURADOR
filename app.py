@@ -36,11 +36,20 @@ def guardar_reglas(nueva_regla):
 st.title("🤖 Agente Capturador: Ventas e Inventarios")
 st.caption("Herramienta inteligente de extracción, normalización y diagnóstico de reportes")
 
-# Sidebar para Configuración y Reglas Dinámicas
+# Sidebar para Configuración, Modelos y Reglas Dinámicas
 with st.sidebar:
     st.header("⚙️ Configuración")
     api_key = st.text_input("Gemini API Key", type="password", help="Ingresa tu API Key de Google AI Studio")
     
+    st.markdown("---")
+    st.header("🤖 Selector de Modelo")
+    modelo_seleccionado = st.selectbox(
+        "Elige el modelo de IA:",
+        ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3.5-flash-lite"],
+        index=0,
+        help="Selecciona el modelo para probar diferentes tipos de procesamiento y velocidad."
+    )
+
     st.markdown("---")
     st.header("🧠 Memoria de Reglas del Agente")
     st.caption("Instrucciones acumuladas para afinar la precisión del agente.")
@@ -80,7 +89,7 @@ if uploaded_files:
         st.warning("⚠️ Ingresa tu Gemini API Key en el menú lateral para procesar los documentos.")
     else:
         if st.button("🚀 Procesar, Analizar y Extraer", type="primary"):
-            with st.spinner("El Agente está analizando las imágenes y generando su bitácora..."):
+            with st.spinner(f"El Agente está analizando las imágenes con `{modelo_seleccionado}`..."):
                 try:
                     # Inicializar cliente de Gemini
                     client = genai.Client(api_key=api_key)
@@ -150,9 +159,9 @@ if uploaded_files:
                     # Combinar la lista de imágenes con el texto de instrucciones en el payload de contents
                     contents_list = images + [prompt_instrucciones]
 
-                    # Llamada a Gemini con salida JSON forzada
+                    # Llamada a Gemini usando el modelo seleccionado dinámicamente
                     response = client.models.generate_content(
-                        model="gemini-3.5-flash-lite",
+                        model=modelo_seleccionado,
                         contents=contents_list,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json"
@@ -169,7 +178,7 @@ if uploaded_files:
                     df = pd.DataFrame(datos_lista)
 
                     # MOSTRAR BITÁCORA / RESUMEN DEL AGENTE
-                    st.info(f"🤖 **Bitácora del Agente:**\n\n"
+                    st.info(f"🤖 **Bitácora del Agente ({modelo_seleccionado}):**\n\n"
                             f"- **Resumen:** {diagnostico.get('resumen', 'N/A')}\n"
                             f"- **Conflictos o Advertencias:** {diagnostico.get('conflictos_o_faltantes', 'Ninguno')}\n"
                             f"- **Estado General:** {diagnostico.get('estado_general', 'N/A')}")
