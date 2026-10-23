@@ -152,7 +152,7 @@ if uploaded_files:
 
                     # Llamada a Gemini con salida JSON forzada
                     response = client.models.generate_content(
-                        model="gemini-2.5-flash",
+                        model="gemini-3.5-flash-lite",
                         contents=contents_list,
                         config=types.GenerateContentConfig(
                             response_mime_type="application/json"
