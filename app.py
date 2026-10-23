@@ -45,7 +45,7 @@ with st.sidebar:
     st.header("🤖 Selector de Modelo")
     modelo_seleccionado = st.selectbox(
         "Elige el modelo de IA:",
-        ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-3.5-flash-lite"],
+        ["gemini-3.5-flash-lite", "gemini-3.8-flash"],
         index=0,
         help="Selecciona el modelo para probar diferentes tipos de procesamiento y velocidad."
     )
