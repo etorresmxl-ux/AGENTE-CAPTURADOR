@@ -9,7 +9,7 @@ from google.genai import types
 
 # Configuración de la página
 st.set_page_config(
-    page_title="Agente Capturador de Reportes",
+    page_title="Agente Capturador de Inventarios",
     page_icon="🤖",
     layout="wide"
 )
@@ -33,8 +33,8 @@ def guardar_reglas(nueva_regla):
         else:
             f.write(f"{reglas_actuales}\n- {nueva_regla}\n")
 
-st.title("🤖 Agente Capturador: Ventas e Inventarios")
-st.caption("Herramienta inteligente de extracción, normalización y diagnóstico de reportes")
+st.title("🤖 Agente Capturador: Inventarios")
+st.caption("Herramienta inteligente de extracción, normalización y diagnóstico de reportes de inventario")
 
 # Sidebar para Configuración, Modelos y Reglas Dinámicas
 with st.sidebar:
@@ -67,13 +67,6 @@ with st.sidebar:
         else:
             st.warning("Escribe una regla antes de guardar.")
 
-# Tipo de reporte a procesar
-tipo_reporte = st.radio(
-    "Selecciona el tipo de documento:",
-    ["Reporte de Ventas", "Reporte de Inventarios"],
-    horizontal=True
-)
-
 # Carga de múltiples imágenes (sin mostrarlas visualmente)
 uploaded_files = st.file_uploader(
     "Carga, arrastra o pega tus imágenes aquí (JPG, PNG)",
@@ -100,61 +93,31 @@ if uploaded_files:
                     # Cargar todas las imágenes usando PIL
                     images = [Image.open(file) for file in uploaded_files]
 
-                    # Prompt estructurado que pide un JSON con dos partes: la bitácora y los datos
-                    if tipo_reporte == "Reporte de Ventas":
-                        prompt_instrucciones = f"""
-                        Analiza las imágenes adjuntas correspondientes a un reporte de ventas de gasolinera.
-                        
-                        Sigue estrictamente estas reglas acumuladas de negocio:
-                        {reglas_dinamicas}
+                    # Prompt estructurado exclusivo para inventarios con la estructura requerida
+                    prompt_instrucciones = f"""
+                    Analiza las imágenes adjuntas correspondientes a un reporte de inventario de combustibles.
+                    
+                    Sigue estrictamente estas reglas acumuladas de negocio:
+                    {reglas_dinamicas}
 
-                        Devuelve tu respuesta ÚNICAMENTE en un formato JSON válido con esta estructura exacta:
+                    Devuelve tu respuesta ÚNICAMENTE en un formato JSON válido con esta estructura exacta:
+                    {{
+                      "diagnostico": {{
+                        "resumen": "Breve explicación de qué encontraste, si la calidad fue buena, si hubo datos confusos o si todo está en orden.",
+                        "conflictos_o_faltantes": "Menciona si hubo algún dato faltante, celda borrosa o si tuviste que inferir algo.",
+                        "estado_general": "Óptimo / Con advertencias / Requiere revisión manual"
+                      }},
+                      "datos": [
                         {{
-                          "diagnostico": {{
-                            "resumen": "Breve explicación de qué encontraste, si la calidad fue buena, si hubo datos confusos o si todo está en orden.",
-                            "conflictos_o_faltantes": "Menciona si hubo algún dato faltante, celda borrosa o si tuviste que inferir algo.",
-                            "estado_general": "Óptimo / Con advertencias / Requiere revisión manual"
-                          }},
-                          "datos": [
-                            {{
-                              "fecha": "YYYY-MM-DD o null",
-                              "estacion": "Texto o null",
-                              "producto": "Texto o null",
-                              "volumen_litros": 0.0,
-                              "precio_unitario": 0.0,
-                              "importe_total": 0.0
-                            }}
-                          ]
+                          "fecha": "YYYY-MM-DD o null",
+                          "id_estacion": "Texto o null",
+                          "nombre": "Texto o null",
+                          "producto": "Texto o null",
+                          "volumen": 0.0
                         }}
-                        """
-                    else:
-                        prompt_instrucciones = f"""
-                        Analiza las imágenes adjuntas correspondientes a un reporte de inventario de combustibles.
-                        
-                        Sigue estrictamente estas reglas acumuladas de negocio:
-                        {reglas_dinamicas}
-
-                        Devuelve tu respuesta ÚNICAMENTE en un formato JSON válido con esta estructura exacta:
-                        {{
-                          "diagnostico": {{
-                            "resumen": "Breve explicación de qué encontraste, si la calidad fue buena, si hubo datos confusos o si todo está en orden.",
-                            "conflictos_o_faltantes": "Menciona si hubo algún dato faltante, celda borrosa o si tuviste que inferir algo.",
-                            "estado_general": "Óptimo / Con advertencias / Requiere revisión manual"
-                          }},
-                          "datos": [
-                            {{
-                              "fecha": "YYYY-MM-DD o null",
-                              "estacion": "Texto o null",
-                              "tanque": "Texto o null",
-                              "producto": "Texto o null",
-                              "inventario_inicial_litros": 0.0,
-                              "recepciones_litros": 0.0,
-                              "ventas_litros": 0.0,
-                              "inventario_final_litros": 0.0
-                            }}
-                          ]
-                        }}
-                        """
+                      ]
+                    }}
+                    """
 
                     # Combinar la lista de imágenes con el texto de instrucciones en el payload de contents
                     contents_list = images + [prompt_instrucciones]
@@ -195,20 +158,20 @@ if uploaded_files:
                     c_csv.download_button(
                         label="📄 Descargar CSV",
                         data=csv_data,
-                        file_name=f"reporte_extraido_{tipo_reporte.lower().replace(' ', '_')}.csv",
+                        file_name="reporte_inventario_extraido.csv",
                         mime="text/csv"
                     )
 
                     # Exportar a Excel
                     buffer = BytesIO()
                     with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                        df.to_excel(writer, index=False, sheet_name="Datos Extraídos")
+                        df.to_excel(writer, index=False, sheet_name="Inventario Extraído")
                     excel_data = buffer.getvalue()
 
                     c_excel.download_button(
                         label="📊 Descargar Excel",
                         data=excel_data,
-                        file_name=f"reporte_extraido_{tipo_reporte.lower().replace(' ', '_')}.xlsx",
+                        file_name="reporte_inventario_extraido.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
 
