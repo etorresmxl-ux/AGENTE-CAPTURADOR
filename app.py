@@ -153,7 +153,7 @@ if uploaded_file is not None:
 
                         # Llamada a Gemini con salida JSON forzada
                         response = client.models.generate_content(
-                            model="gemini-2.5-flash",
+                            model="gemini-3.8-flash",
                             contents=[image, prompt_instrucciones],
                             config=types.GenerateContentConfig(
                                 response_mime_type="application/json"
