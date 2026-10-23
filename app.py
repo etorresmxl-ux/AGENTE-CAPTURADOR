@@ -44,10 +44,10 @@ with st.sidebar:
     st.markdown("---")
     st.header("🧠 Memoria de Reglas del Agente")
     st.caption("Instrucciones acumuladas para afinar la precisión del agente.")
-    
+
     reglas_actuales = cargar_reglas()
     st.text_area("Reglas activas:", value=reglas_actuales, height=150, disabled=True)
-    
+
     # Campo para agregar nueva regla al vuelo
     nueva_regla_input = st.text_input("Agregar nueva regla o corrección:")
     if st.button("💾 Guardar Regla"):
@@ -65,144 +65,143 @@ tipo_reporte = st.radio(
     horizontal=True
 )
 
-# Carga de la imagen (Arrastrar, soltar o Ctrl + V)
-uploaded_file = st.file_uploader(
-    "Carga, arrastra o pega tu imagen aquí (JPG, PNG)", 
+# Carga de múltiples imágenes (sin mostrarlas visualmente)
+uploaded_files = st.file_uploader(
+    "Carga, arrastra o pega tus imágenes aquí (JPG, PNG)",
     type=["jpg", "jpeg", "png"],
-    help="Puedes arrastrar una imagen, seleccionarla, o hacer clic y presionar Ctrl+V."
+    accept_multiple_files=True,
+    help="Puedes seleccionar varias imágenes a la vez."
 )
 
-if uploaded_file is not None:
-    col1, col2 = st.columns([1, 2])
+if uploaded_files:
+    st.subheader("📊 Datos Extraídos y Diagnóstico")
     
-    with col1:
-        st.subheader("🖼️ Documento Cargado")
-        image = Image.open(uploaded_file)
-        st.image(image, use_container_width=True)
+    if not api_key:
+        st.warning("⚠️ Ingresa tu Gemini API Key en el menú lateral para procesar los documentos.")
+    else:
+        if st.button("🚀 Procesar, Analizar y Extraer", type="primary"):
+            with st.spinner("El Agente está analizando las imágenes y generando su bitácora..."):
+                try:
+                    # Inicializar cliente de Gemini
+                    client = genai.Client(api_key=api_key)
+                    
+                    # Recuperar reglas actuales para inyectarlas al prompt
+                    reglas_dinamicas = cargar_reglas()
 
-    with col2:
-        st.subheader("📊 Datos Extraídos y Diagnóstico")
-        
-        if not api_key:
-            st.warning("⚠️ Ingresa tu Gemini API Key en el menú lateral para procesar el documento.")
-        else:
-            if st.button("🚀 Procesar, Analizar y Extraer", type="primary"):
-                with st.spinner("El Agente está analizando la imagen y generando su bitácora..."):
-                    try:
-                        # Inicializar cliente de Gemini
-                        client = genai.Client(api_key=api_key)
+                    # Cargar todas las imágenes usando PIL
+                    images = [Image.open(file) for file in uploaded_files]
+
+                    # Prompt estructurado que pide un JSON con dos partes: la bitácora y los datos
+                    if tipo_reporte == "Reporte de Ventas":
+                        prompt_instrucciones = f"""
+                        Analiza las imágenes adjuntas correspondientes a un reporte de ventas de gasolinera.
                         
-                        # Recuperar reglas actuales para inyectarlas al prompt
-                        reglas_dinamicas = cargar_reglas()
+                        Sigue estrictamente estas reglas acumuladas de negocio:
+                        {reglas_dinamicas}
 
-                        # Prompt estructurado que pide un JSON con dos partes: la bitácora y los datos
-                        if tipo_reporte == "Reporte de Ventas":
-                            prompt_instrucciones = f"""
-                            Analiza la imagen adjunta correspondiente a un reporte de ventas de gasolinera.
-                            
-                            Sigue estrictamente estas reglas acumuladas de negocio:
-                            {reglas_dinamicas}
-
-                            Devuelve tu respuesta ÚNICAMENTE en un formato JSON válido con esta estructura exacta:
+                        Devuelve tu respuesta ÚNICAMENTE en un formato JSON válido con esta estructura exacta:
+                        {{
+                          "diagnostico": {{
+                            "resumen": "Breve explicación de qué encontraste, si la calidad fue buena, si hubo datos confusos o si todo está en orden.",
+                            "conflictos_o_faltantes": "Menciona si hubo algún dato faltante, celda borrosa o si tuviste que inferir algo.",
+                            "estado_general": "Óptimo / Con advertencias / Requiere revisión manual"
+                          }},
+                          "datos": [
                             {{
-                              "diagnostico": {{
-                                "resumen": "Breve explicación de qué encontraste, si la calidad fue buena, si hubo datos confusos o si todo está en orden.",
-                                "conflictos_o_faltantes": "Menciona si hubo algún dato faltante, celda borrosa o si tuviste que inferir algo.",
-                                "estado_general": "Óptimo / Con advertencias / Requiere revisión manual"
-                              }},
-                              "datos": [
-                                {{
-                                  "fecha": "YYYY-MM-DD o null",
-                                  "estacion": "Texto o null",
-                                  "producto": "Texto o null",
-                                  "volumen_litros": 0.0,
-                                  "precio_unitario": 0.0,
-                                  "importe_total": 0.0
-                                }}
-                              ]
+                              "fecha": "YYYY-MM-DD o null",
+                              "estacion": "Texto o null",
+                              "producto": "Texto o null",
+                              "volumen_litros": 0.0,
+                              "precio_unitario": 0.0,
+                              "importe_total": 0.0
                             }}
-                            """
-                        else:
-                            prompt_instrucciones = f"""
-                            Analiza la imagen adjunta correspondiente a un reporte de inventario de combustibles.
-                            
-                            Sigue estrictamente estas reglas acumuladas de negocio:
-                            {reglas_dinamicas}
+                          ]
+                        }}
+                        """
+                    else:
+                        prompt_instrucciones = f"""
+                        Analiza las imágenes adjuntas correspondientes a un reporte de inventario de combustibles.
+                        
+                        Sigue estrictamente estas reglas acumuladas de negocio:
+                        {reglas_dinamicas}
 
-                            Devuelve tu respuesta ÚNICAMENTE en un formato JSON válido con esta estructura exacta:
+                        Devuelve tu respuesta ÚNICAMENTE en un formato JSON válido con esta estructura exacta:
+                        {{
+                          "diagnostico": {{
+                            "resumen": "Breve explicación de qué encontraste, si la calidad fue buena, si hubo datos confusos o si todo está en orden.",
+                            "conflictos_o_faltantes": "Menciona si hubo algún dato faltante, celda borrosa o si tuviste que inferir algo.",
+                            "estado_general": "Óptimo / Con advertencias / Requiere revisión manual"
+                          }},
+                          "datos": [
                             {{
-                              "diagnostico": {{
-                                "resumen": "Breve explicación de qué encontraste, si la calidad fue buena, si hubo datos confusos o si todo está en orden.",
-                                "conflictos_o_faltantes": "Menciona si hubo algún dato faltante, celda borrosa o si tuviste que inferir algo.",
-                                "estado_general": "Óptimo / Con advertencias / Requiere revisión manual"
-                              }},
-                              "datos": [
-                                {{
-                                  "fecha": "YYYY-MM-DD o null",
-                                  "estacion": "Texto o null",
-                                  "tanque": "Texto o null",
-                                  "producto": "Texto o null",
-                                  "inventario_inicial_litros": 0.0,
-                                  "recepciones_litros": 0.0,
-                                  "ventas_litros": 0.0,
-                                  "inventario_final_litros": 0.0
-                                }}
-                              ]
+                              "fecha": "YYYY-MM-DD o null",
+                              "estacion": "Texto o null",
+                              "tanque": "Texto o null",
+                              "producto": "Texto o null",
+                              "inventario_inicial_litros": 0.0,
+                              "recepciones_litros": 0.0,
+                              "ventas_litros": 0.0,
+                              "inventario_final_litros": 0.0
                             }}
-                            """
+                          ]
+                        }}
+                        """
 
-                        # Llamada a Gemini con salida JSON forzada
-                        response = client.models.generate_content(
-                            model="gemini-3.8-flash",
-                            contents=[image, prompt_instrucciones],
-                            config=types.GenerateContentConfig(
-                                response_mime_type="application/json"
-                            )
+                    # Combinar la lista de imágenes con el texto de instrucciones en el payload de contents
+                    contents_list = images + [prompt_instrucciones]
+
+                    # Llamada a Gemini con salida JSON forzada
+                    response = client.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=contents_list,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json"
                         )
-                        
-                        # Parsear respuesta JSON
-                        respuesta_completa = json.loads(response.text)
-                        
-                        # Extraer bitácora y datos
-                        diagnostico = respuesta_completa.get("diagnostico", {})
-                        datos_lista = respuesta_completa.get("datos", [])
-                        
-                        df = pd.DataFrame(datos_lista)
+                    )
+                    
+                    # Parsear respuesta JSON
+                    respuesta_completa = json.loads(response.text)
+                    
+                    # Extraer bitácora y datos
+                    diagnostico = respuesta_completa.get("diagnostico", {})
+                    datos_lista = respuesta_completa.get("datos", [])
+                    
+                    df = pd.DataFrame(datos_lista)
 
-                        # MOSTRAR BITÁCORA / RESUMEN DEL AGENTE
-                        st.info(f"🤖 **Bitácora del Agente:**\n\n"
-                                f"- **Resumen:** {diagnostico.get('resumen', 'N/A')}\n"
-                                f"- **Conflictos o Advertencias:** {diagnostico.get('conflictos_o_faltantes', 'Ninguno')}\n"
-                                f"- **Estado General:** {diagnostico.get('estado_general', 'N/A')}")
+                    # MOSTRAR BITÁCORA / RESUMEN DEL AGENTE
+                    st.info(f"🤖 **Bitácora del Agente:**\n\n"
+                            f"- **Resumen:** {diagnostico.get('resumen', 'N/A')}\n"
+                            f"- **Conflictos o Advertencias:** {diagnostico.get('conflictos_o_faltantes', 'Ninguno')}\n"
+                            f"- **Estado General:** {diagnostico.get('estado_general', 'N/A')}")
 
-                        st.success("✅ ¡Extracción completada con éxito!")
-                        st.dataframe(df, use_container_width=True)
+                    st.success("✅ ¡Extracción completada con éxito!")
+                    st.dataframe(df, use_container_width=True)
 
-                        # Opciones de descarga
-                        st.subheader("📥 Descargar Reporte")
-                        c_csv, c_excel = st.columns(2)
+                    # Opciones de descarga
+                    st.subheader("📥 Descargar Reporte")
+                    c_csv, c_excel = st.columns(2)
 
-                        # Exportar a CSV
-                        csv_data = df.to_csv(index=False).encode('utf-8')
-                        c_csv.download_button(
-                            label="📄 Descargar CSV",
-                            data=csv_data,
-                            file_name=f"reporte_extraido_{tipo_reporte.lower().replace(' ', '_')}.csv",
-                            mime="text/csv"
-                        )
+                    # Exportar a CSV
+                    csv_data = df.to_csv(index=False).encode('utf-8')
+                    c_csv.download_button(
+                        label="📄 Descargar CSV",
+                        data=csv_data,
+                        file_name=f"reporte_extraido_{tipo_reporte.lower().replace(' ', '_')}.csv",
+                        mime="text/csv"
+                    )
 
-                        # Exportar a Excel
-                        buffer = BytesIO()
-                        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-                            df.to_excel(writer, index=False, sheet_name="Datos Extraídos")
-                        excel_data = buffer.getvalue()
+                    # Exportar a Excel
+                    buffer = BytesIO()
+                    with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                        df.to_excel(writer, index=False, sheet_name="Datos Extraídos")
+                    excel_data = buffer.getvalue()
 
-                        c_excel.download_button(
-                            label="📊 Descargar Excel",
-                            data=excel_data,
-                            file_name=f"reporte_extraido_{tipo_reporte.lower().replace(' ', '_')}.xlsx",
-                            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                        )
+                    c_excel.download_button(
+                        label="📊 Descargar Excel",
+                        data=excel_data,
+                        file_name=f"reporte_extraido_{tipo_reporte.lower().replace(' ', '_')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
 
-                    except Exception as e:
-                        st.error(f"❌ Ocurrió un error durante el procesamiento: {str(e)}")
+                except Exception as e:
+                    st.error(f"❌ Ocurrió un error durante el procesamiento: {str(e)}")
